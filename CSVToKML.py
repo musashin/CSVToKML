@@ -10,7 +10,7 @@ from geopy.distance import great_circle
 line = collections.namedtuple('line', 'name lat_col_index lon_col_index color mark_time timestep')
 
 
-_CSV_Path = r'/home/nicolas/PycharmProjects/CSVToKML/Dumps/Initial/A350-FFS_Tue_May_17_19-04-27_2016.bus.csv'
+_CSV_Path = r'/home/nicolas/PycharmProjects/CSVToKML/Dumps/ExtraData/merged/A350-FFS_Fri_May_20_16-54-19_2016.bus.csv'
 
 """
 _time_index = 0
@@ -36,7 +36,7 @@ linelist = list()
 
 def loadConfig(configFilePath, firstRow):
 
-    global start_time,Falseend_time,time_index,ref_speed_in_kts
+    global start_time,end_time,time_index,ref_speed_in_kts
     config = ConfigParser.RawConfigParser()
     config.read(configFilePath)
 
@@ -135,7 +135,7 @@ if __name__ == '__main__':
                                                       coords=[(row[linelist[id].lon_col_index], row[linelist[id].lat_col_index])])
 
                         if len(line_coord[id])>2:
-                            if get_last_speed(float(row[time_index]), id) > (ref_speed_in_kts + (ref_speed_in_kts*2.0)):
+                            if get_last_speed(float(row[time_index]), id) > (ref_speed_in_kts + (ref_speed_in_kts*5.0)):
                                 print 'potential jump for trajectory {!s} at time {!s}'.format(linelist[id].name, row[time_index])
 
                         line_times[id] = float(row[time_index])
