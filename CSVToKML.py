@@ -4,8 +4,9 @@ import simplekml
 import os
 import ConfigParser
 import collections
+import sys
 
-line = collections.namedtuple('line', 'name lat_col_index lon_col_index color mark_time')
+line = collections.namedtuple('line', 'name lat_col_index lon_col_index color mark_time timestep')
 
 
 _CSV_Path = r'/home/nicolas/PycharmProjects/CSVToKML/Dumps/Initial/A350-FFS_Tue_May_17_19-04-27_2016.bus.csv'
@@ -22,6 +23,10 @@ linelist = [line(name='CDS_ND_PRP', lat_col_index=19, lon_col_index=5, color=sim
             line(name='ADIR_POS1_FINE', lat_col_index=25, lon_col_index=33, color=simplekml.Color.bisque, mark_time=False)
             ]
 """
+_color_map = {'red':simplekml.Color.red,
+              'blue':simplekml.Color.blue,
+              'green':simplekml.Color.green,
+              'yellow':simplekml.Color.yellow}
 time_index = 0
 start_time = 5
 end_time  = 15
@@ -41,25 +46,46 @@ def loadConfig(configFilePath, firstRow):
 
     for section in config.sections():
         if 'traj' in section:
+
             latcolname = config.get(section, 'LATCOLNAME')
             loncolname = config.get(section, 'LONCOLNAME')
 
-            latcolindex = firstRow.index(latcolname)
-            loncolindex = firstRow.index(loncolname)
+            try:
+                latcolindex = firstRow.index(latcolname)
+            except ValueError:
+                sys.stderr.write('could not find {!s} in the CSV file'.format(latcolname))
+                sys.exit(-1)
 
+            try:
+                loncolindex = firstRow.index(loncolname)
+            except ValueError:
+                sys.stderr.write('could not find {!s} in the CSV file'.format(loncolname))
+                sys.exit(-1)
             try:
                 marktime=config.getboolean(section, "MARKTIME")
             except:
                 marktime = False
 
-            linelist.append(line(name='CDS_ND_PRP',
+            try:
+                timestep=config.getfloat(section, "TIMESTEP")
+            except:
+                timestep = 0.01
+
+            try:
+                color= _color_map[config.get(section, "COLOR")]
+            except:
+                color = simplekml.Color.red
+
+            linelist.append(line(name=section,
                                  lat_col_index=latcolindex,
                                  lon_col_index=loncolindex,
-                                 color=simplekml.Color.red,
-                                 mark_time=marktime))
+                                 color=color,
+                                 mark_time=marktime,
+                                 timestep=timestep))
 
 def isValidLine(row):
     return row[linelist[id].lat_col_index]!=' ' and row[linelist[id].lon_col_index]!=' '
+
 
 def isInTimeWindow(row):
 
@@ -75,31 +101,28 @@ if __name__ == '__main__':
         positionreader = csv.reader(csvfile)
         firstline = True
         linecount = 0
-
-
-
         last_time = -10.0
+
         for row in positionreader:
-                #print 'lat {!s}, lon {!s}\n'.format(row[_lat_col_index], row[_lon_col_index])
-
-
             if firstline:
                 loadConfig(os.path.join(os.path.dirname(_CSV_Path), "config.ini"), row)
                 line_coord = list()
+                line_times = list()
                 for id in  range(len(linelist)):
                     line_coord.append(list())
+                    line_times.append(-10.0)
             else:
                 for id in range(len(linelist)):
-                    if isValidLine(row) and isInTimeWindow(row):
+                    if isValidLine(row) and isInTimeWindow(row) and (float(row[time_index]) - line_times[id])>= linelist[id].timestep:
 
                         line_coord[id].append((row[linelist[id].lon_col_index], row[linelist[id].lat_col_index]))
 
-                        if linelist[id].mark_time and (float(row[_time_index])- last_time)>= 0.1:
-                            timepnt = KMLDoc.newpoint(name="Time is {!s}".format(row[_time_index]),
-                                                      description="Time is {!s}".format(row[_time_index]),
+                        if linelist[id].mark_time:
+                            timepnt = KMLDoc.newpoint(name="Time is {!s}".format(row[time_index]),
+                                                      description="Time is {!s}".format(row[time_index]),
                                                       coords=[(row[linelist[id].lon_col_index], row[linelist[id].lat_col_index])])
 
-                            last_time = float(row[_time_index])
+                        line_times[id] = float(row[time_index])
 
 
             firstline = False
