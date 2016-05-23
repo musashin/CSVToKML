@@ -5,6 +5,7 @@ import os
 import ConfigParser
 import collections
 import sys
+from geopy.distance import great_circle
 
 line = collections.namedtuple('line', 'name lat_col_index lon_col_index color mark_time timestep')
 
@@ -30,11 +31,12 @@ _color_map = {'red':simplekml.Color.red,
 time_index = 0
 start_time = 5
 end_time  = 15
+ref_speed_in_kts = 250
 linelist = list()
 
 def loadConfig(configFilePath, firstRow):
 
-    global start_time,end_time,time_index
+    global start_time,Falseend_time,time_index,ref_speed_in_kts
     config = ConfigParser.RawConfigParser()
     config.read(configFilePath)
 
@@ -61,6 +63,11 @@ def loadConfig(configFilePath, firstRow):
             except ValueError:
                 sys.stderr.write('could not find {!s} in the CSV file'.format(loncolname))
                 sys.exit(-1)
+            try:
+                ref_speed_in_kts=config.getfloat(section, "REFSPEEDKTS")
+            except:
+                ref_speed_in_kts = 250
+
             try:
                 marktime=config.getboolean(section, "MARKTIME")
             except:
@@ -91,6 +98,10 @@ def isInTimeWindow(row):
 
     return float(row[time_index])>=start_time and float(row[time_index])<=end_time
 
+def get_last_speed(current_time, id):
+    return great_circle(line_coord[id][-1], line_coord[id][-2]).nm / (current_time - line_times[id]) * 3600
+
+
 if __name__ == '__main__':
 
     KMLDoc = simplekml.Kml()
@@ -111,6 +122,7 @@ if __name__ == '__main__':
                 for id in  range(len(linelist)):
                     line_coord.append(list())
                     line_times.append(-10.0)
+
             else:
                 for id in range(len(linelist)):
                     if isValidLine(row) and isInTimeWindow(row) and (float(row[time_index]) - line_times[id])>= linelist[id].timestep:
@@ -121,6 +133,10 @@ if __name__ == '__main__':
                             timepnt = KMLDoc.newpoint(name="Time is {!s}".format(row[time_index]),
                                                       description="Time is {!s}".format(row[time_index]),
                                                       coords=[(row[linelist[id].lon_col_index], row[linelist[id].lat_col_index])])
+
+                        if len(line_coord[id])>2:
+                            if get_last_speed(float(row[time_index]), id) > (ref_speed_in_kts + (ref_speed_in_kts*2.0)):
+                                print 'potential jump for trajectory {!s} at time {!s}'.format(linelist[id].name, row[time_index])
 
                         line_times[id] = float(row[time_index])
 
