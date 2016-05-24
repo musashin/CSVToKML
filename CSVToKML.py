@@ -10,31 +10,33 @@ from geopy.distance import great_circle
 line = collections.namedtuple('line', 'name lat_col_index lon_col_index color mark_time timestep')
 
 
-_CSV_Path = r'/home/nicolas/PycharmProjects/CSVToKML/Dumps/ExtraData/merged/A350-FFS_Fri_May_20_16-54-19_2016.bus.csv'
+_CSV_Path = r'C:\Ascent\Development\A350-FFS\DEVELOPMENT\Tools\CSVToKML\Dumps\TestStation2\A350-FFS_Tue_May_24_07-09-52_2016.bus.csv'
 
-"""
-_time_index = 0
-_start_time = 5
-_end_time  = 15
 
-linelist = [line(name='CDS_ND_PRP', lat_col_index=19, lon_col_index=5, color=simplekml.Color.red, mark_time=False),
-            line(name='ADIR_POS1', lat_col_index=16, lon_col_index=29, color=simplekml.Color.blue, mark_time=False),
-            #line(name='ADIR_POS2', lat_col_index=14, lon_col_index=26, color=simplekml.Color.green, mark_time=False),
-            #line(name='ADIR_POS3', lat_col_index=15, lon_col_index=27, color=simplekml.Color.yellow, mark_time=False),
-            line(name='ADIR_POS1_FINE', lat_col_index=25, lon_col_index=33, color=simplekml.Color.bisque, mark_time=False)
-            ]
-"""
-_color_map = {'red':simplekml.Color.red,
-              'blue':simplekml.Color.blue,
-              'green':simplekml.Color.green,
-              'yellow':simplekml.Color.yellow}
+_color_map = {'red': simplekml.Color.red,
+              'blue': simplekml.Color.blue,
+              'green': simplekml.Color.green,
+              'yellow': simplekml.Color.yellow}
+
 time_index = 0
 start_time = 5
-end_time  = 15
+end_time = 15
 ref_speed_in_kts = 250
 linelist = list()
 
-def loadConfig(configFilePath, firstRow):
+def loadConfig(configFilePath, CSVfirstRow):
+    """
+    Load the INI Configuration file data
+
+    From the config file, load:
+        - Start and End time
+        - name of the time column
+        - for each trajectory, the name of the column, the sampling time and color
+
+    :param configFilePath:  path to the INI configuration file
+    :param CSVfirstRow: first row in the CSV file
+
+    """
 
     global start_time,end_time,time_index,ref_speed_in_kts
     config = ConfigParser.RawConfigParser()
@@ -44,7 +46,7 @@ def loadConfig(configFilePath, firstRow):
     end_time = config.getfloat('GENERAL', 'ENDTIME')
     timeColumnName = config.get('GENERAL', 'TIMECOLNAME')
 
-    time_index = firstRow.index(timeColumnName)
+    time_index = CSVfirstRow.index(timeColumnName)
 
     for section in config.sections():
         if 'traj' in section:
@@ -53,13 +55,13 @@ def loadConfig(configFilePath, firstRow):
             loncolname = config.get(section, 'LONCOLNAME')
 
             try:
-                latcolindex = firstRow.index(latcolname)
+                latcolindex = CSVfirstRow.index(latcolname)
             except ValueError:
                 sys.stderr.write('could not find {!s} in the CSV file'.format(latcolname))
                 sys.exit(-1)
 
             try:
-                loncolindex = firstRow.index(loncolname)
+                loncolindex = CSVfirstRow.index(loncolname)
             except ValueError:
                 sys.stderr.write('could not find {!s} in the CSV file'.format(loncolname))
                 sys.exit(-1)
@@ -90,8 +92,13 @@ def loadConfig(configFilePath, firstRow):
                                  mark_time=marktime,
                                  timestep=timestep))
 
-def isValidLine(row):
-    return row[linelist[id].lat_col_index]!=' ' and row[linelist[id].lon_col_index]!=' '
+def isValidLine(row, traj_data):
+    """
+
+    :param row:
+    :return:
+    """
+    return row[traj_data.lat_col_index]!=' ' and row[traj_data.lon_col_index]!=' '
 
 
 def isInTimeWindow(row):
@@ -125,7 +132,7 @@ if __name__ == '__main__':
 
             else:
                 for id in range(len(linelist)):
-                    if isValidLine(row) and isInTimeWindow(row) and (float(row[time_index]) - line_times[id])>= linelist[id].timestep:
+                    if isValidLine(row, linelist[id]) and isInTimeWindow(row) and (float(row[time_index]) - line_times[id])>= linelist[id].timestep:
 
                         line_coord[id].append((row[linelist[id].lon_col_index], row[linelist[id].lat_col_index]))
 
